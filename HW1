@@ -1,0 +1,84 @@
+library(readxl)
+library(dplyr)
+library(ks)
+library(ggpubr)
+library(triangle)
+set.seed(12345)
+
+Analysis_Data <- read_excel("C:/Users/mdsau/OneDrive/Desktop/IAA/AA 502/Simulation & Risk/Homework/Analysis_Data.xlsx", 
+                            sheet = "Drilling Cost", skip = 2)
+
+Analysis_Data <- Analysis_Data %>% 
+  rename(Oil_Cost = 'U.S. Nominal Cost per Crude Oil Well Drilled (Thousand Dollars per Well)',
+         Gas_Cost = 'U.S. Nominal Cost per Natural Gas Well Drilled (Thousand Dollars per Well)',
+         DryWell_Cost = 'U.S. Nominal Cost per Dry Well Drilled (Thousand Dollars per Well)',
+         Oil_Return = 'Arithmetic Return - Crude Oil',
+         Gas_Return = 'Arithmetic Return - Natural Gas',
+         DryWell_Return = 'Arithmetic Return - Dry Well')
+
+Analysis_Data <- subset(Analysis_Data, as.Date(Date) > "1990-06-30" & as.Date(Date) < "2007-06-30")
+
+Analysis_Data$drilling_cost=rowMeans(Analysis_Data[,c("Oil_Cost","Gas_Cost","DryWell_Cost")], na.rm=TRUE)
+
+distribution <- as.numeric(c(Analysis_Data$Oil_Return,Analysis_Data$Gas_Return,Analysis_Data$DryWell_Return))
+
+sd_norm <- sd(distribution)
+mean_norm <- mean(distribution)
+
+ggqqplot(distribution)
+shapiro.test(distribution)
+
+P2019 <- rep(0,10000)
+for(i in 1:10000){
+  P0 <- 2279.80
+  r <- rnorm(n=1, mean=mean_norm, sd=sd_norm)
+  Pt <- P0*(1 + r)
+  for(j in 1:5){
+    r <- rnorm(n=1, mean=mean_norm, sd=sd_norm)
+    Pt <- Pt*(1+r)
+  }
+    for(l in 1:3){
+      r <- rtriangle(1, a = 0.07, b = .22, c = .0917)
+      Pt <- Pt*(1-r)
+    }
+      for(b in 1:4){
+        r <- rtriangle(1, a = 0.02, b = .06, c = .05)
+        Pt <- Pt*(1+r)
+      }
+  P2019[i] <- Pt
+}
+
+summary(P2019)
+sd(P2019)
+
+hist(P2019, breaks=50, main='Possible Future Values of 2019 Drilling Costs', xlab='Final Value')
+abline(v = 2279.80, col="red", lwd=2)
+mtext("Initial Value", at=2279.80, col="red")
+
+
+P2019_kd <- rep(0,10000)
+for(i in 1:10000){
+  P0 <- 2279.80
+  r <- rkde(fhat=kde(distribution, h=0.07935), n=1)
+  Pt <- P0*(1+r)
+  for(j in 1:5){
+    r <- rkde(fhat=kde(distribution, h=0.07935), n=1)
+    Pt <- Pt*(1+r)
+  }
+  for(l in 1:3){
+    r <- rtriangle(1, a = 0.07, b = .22, c = .0917)
+    Pt <- Pt*(1-r)
+  }
+  for(b in 1:4){
+    r <- rtriangle(1, a = 0.02, b = .06, c = .05)
+    Pt <- Pt*(1+r)
+  }
+  P2019_kd[i] <- Pt
+}
+
+summary(P2019_kd)
+sd(P2019_kd)
+
+hist(P2019_kd, breaks=50, main='Possible Future Values of 2019 Drilling Costs', xlab='Final Value')
+abline(v = 2279.80, col="red", lwd=2)
+mtext("Initial Value", at=2279.80, col="red")
