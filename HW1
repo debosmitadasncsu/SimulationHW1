@@ -16,48 +16,55 @@ Analysis_Data <- Analysis_Data %>%
          Gas_Return = 'Arithmetic Return - Natural Gas',
          DryWell_Return = 'Arithmetic Return - Dry Well')
 
+# Only want 1991-2006
 Analysis_Data <- subset(Analysis_Data, as.Date(Date) > "1990-06-30" & as.Date(Date) < "2007-06-30")
 
+# Get averages and only care about 2006 price for P0
 Analysis_Data$drilling_cost=rowMeans(Analysis_Data[,c("Oil_Cost","Gas_Cost","DryWell_Cost")], na.rm=TRUE)
 
+# Put all the returns into one vector
 distribution <- as.numeric(c(Analysis_Data$Oil_Return,Analysis_Data$Gas_Return,Analysis_Data$DryWell_Return))
 
+# Get SD and mean for normal distribution
 sd_norm <- sd(distribution)
 mean_norm <- mean(distribution)
 
+# Check normality
 ggqqplot(distribution)
 shapiro.test(distribution)
 
-P2019 <- rep(0,10000)
-for(i in 1:10000){
-  P0 <- 2279.80
+P2019 <- rep(0,100000) # Initialize empty vector for storage
+for(i in 1:100000){
+  P0 <- 2279.80 # Baseline price at 2006 or time 0
   r <- rnorm(n=1, mean=mean_norm, sd=sd_norm)
-  Pt <- P0*(1 + r)
-  for(j in 1:5){
+  Pt <- P0*(1 + r) #2007
+  for(j in 1:5){ # 2008-2012
     r <- rnorm(n=1, mean=mean_norm, sd=sd_norm)
     Pt <- Pt*(1+r)
   }
-    for(l in 1:3){
+  for(l in 1:3){ # 2013-2015
       r <- rtriangle(1, a = 0.07, b = .22, c = .0917)
       Pt <- Pt*(1-r)
-    }
-      for(b in 1:4){
+  }
+  for(b in 1:4){ # 2016-2019
         r <- rtriangle(1, a = 0.02, b = .06, c = .05)
         Pt <- Pt*(1+r)
-      }
-  P2019[i] <- Pt
+  }
+  P2019[i] <- Pt # Put 2019 in vector and repeat
 }
 
+# Get summary stats
 summary(P2019)
 sd(P2019)
 
+# Create histogram of counts of 2019 prices
 hist(P2019, breaks=50, main='Possible Future Values of 2019 Drilling Costs', xlab='Final Value')
 abline(v = 2279.80, col="red", lwd=2)
 mtext("Initial Value", at=2279.80, col="red")
 
-
-P2019_kd <- rep(0,10000)
-for(i in 1:10000){
+# Same as above but with kernel density estimation
+P2019_kd <- rep(0,100000)
+for(i in 1:100000){
   P0 <- 2279.80
   r <- rkde(fhat=kde(distribution, h=0.07935), n=1)
   Pt <- P0*(1+r)
@@ -79,6 +86,6 @@ for(i in 1:10000){
 summary(P2019_kd)
 sd(P2019_kd)
 
-hist(P2019_kd, breaks=50, main='Possible Future Values of 2019 Drilling Costs', xlab='Final Value')
+hist(P2019_kd, breaks=50, main='Possible Future Values of 2019 Drilling Costs w/ Kernel', xlab='Final Value')
 abline(v = 2279.80, col="red", lwd=2)
 mtext("Initial Value", at=2279.80, col="red")
